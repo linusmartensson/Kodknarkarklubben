@@ -8,6 +8,15 @@ vec3 o;
 
 
 
+float rand(float a){
+	return fract(mod(a*90321.12312,4351.023));
+}
+
+float noise(float a){
+	return mix(rand(floor(a)-1.0), rand(floor(a)), 1.0-(cos(fract(a)*3.14159)*0.5+0.5));
+}
+
+
 void rot(inout vec2 v, in float t){
 	float c = cos(t);
 	float s = sin(t);
@@ -17,8 +26,8 @@ void rot(inout vec2 v, in float t){
 
 float groundheight(vec3 pos){
 	return pos.y + 
-		(-10.0+sin(pos.z*0.052)*10.0+sin(pos.x*0.01+t)*30.0)
-		*min(4.0,abs((pos.x*pos.x*0.1)*0.03));
+		(-10.0+sin(pos.z*0.052)*10.0+sin(pos.x*0.01+t)*20.0)
+		*min(4.0,abs((pos.x*pos.x*0.1)*0.001));
 }
 
 float box(vec3 p, vec3 b){
@@ -60,9 +69,9 @@ float d(vec3 pos){
 	
 	vec3 p = pos;
 
-	pos.x = mod(pos.x,40.0)-20.0;
+	pos.x = mod(pos.x,120.0)-60.0;
 
-	pos.z = mod(pos.z,40.0)-20.0;
+	pos.z = mod(pos.z,60.0)-30.0;
 
 
 
@@ -82,6 +91,9 @@ void main(){
 	float tf = floor(t*0.25+10.0);
 	o = vec3(0.0,0.0,-20.0+t*100.0);
 	vec3 dir = vec3((gl_FragCoord.xy/res.xy*2.0-1.0)/vec2(res.y/res.x,1.0),1.0);
+	dir = normalize(dir);
+	dir.x *= sin(noise(dir.x*3000.0*noise(t+dir.y)+t))*0.1+1.0;
+	dir.y *= sin(noise(dir.y*3000.0*noise(t+dir.x)+t))*0.1+1.0;
 
 	rot(dir.xz,sin(t)*0.1);
 
@@ -109,13 +121,14 @@ void main(){
 		
 	}
 	if(dt < 0.05){
-		gl_FragColor = mix(vec4(l/60.0,j/(j+10.0),1.0,1.0),vec2(0.8,1.0).xxxy, clamp(l/150.0,0.0,1.0));
+		gl_FragColor = mix(vec4(l/60.0,j/(j+10.0),1.0,1.0),vec2(0.3,1.0).xxxy, clamp(l/150.0,0.0,1.0));
+		gl_FragColor.r = 0.0;
 	} else {
-		gl_FragColor = vec2(0.8,1.0).xxxy;
+		gl_FragColor = vec3(0.0,0.3,1.0).xyyz;
 	}
 
 }
-</script><div style="position:fixed;left:0;right:0;top:0;bottom:0;" ><canvas width=320 height=720 id=a style="width:100%;height:100%"/></div><script>
+</script><div style="position:fixed;left:0;right:0;top:0;bottom:0;" ><canvas width=640 height=360 id=a style="width:100%;height:100%"/></div><script>
 d=function(a){return document.getElementById(a)}
 l=function(a){console.log(a)};
 c=d("a")
