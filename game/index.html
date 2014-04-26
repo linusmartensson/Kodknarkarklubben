@@ -1,28 +1,47 @@
-
 <script type="text/text" id="vert"></script>
 <script type="text/text" id="frag"></script>
 <script type="text/text" id="collision"></script>
 <script type="text/text" id="pp"></script>
-<div style="position:fixed;left:0;right:0;top:0;bottom:0;">
-	<canvas width=320 height=160 id=screen style="width:100%;height:100%"/>
+<div style="position:fixed;left:0;right:0;top:0;bottom:0;z-index:0;">
+<canvas width=320 height=160 id=screen style="width:100%;height:100%"/>
+</div>
+<div id="screen_loading" style="border:none;position:fixed;left:0;right:0;top:0;bottom:0;z-index:1;"><center><img src="code.png"><br>loading</center></div>
+<div id="screen_score" style="border:none;position:fixed;left:0;right:0;top:0;bottom:0;z-index:2;visibility:hidden"><h1>SCORE:14322.0</h1></div>
+<div id="screen_dead" style="border:none;position:fixed;left:0;right:0;top:40%;bottom:0;z-index:3visibility:hidden"><center><h1>YOU ARE DEAD</h1></center></div>
+	<h1><center>
+		<br>YOU ARE DEAD
+		<br>FINAL SCORE:1337
+		<br>press enter to restart
+	</h1></center>
 </div>
 <script>
 
-function loadSource(a)
-{
+// fulhack!
+setTimeout(function() {
+	loadGame();
+},2000);
+
+
+function loadSource(a) {
 	var xmlhttp = new XMLHttpRequest();
 	xmlhttp.open("GET",a,false);
 	xmlhttp.send();
 	return xmlhttp.responseText;
 }
-document.getElementById("vert").textContent=loadSource("/game.vert");
-document.getElementById("frag").textContent=loadSource("/game.frag");
-document.getElementById("collision").textContent="#define COLLISION\n"+loadSource("/game.frag");
-document.getElementById("pp").textContent=loadSource("/pp.frag");
-run();
 
-function run()
-	{
+function loadGame() {
+	console.log("loading");
+	//document.getElementById("screen_loading").
+	document.getElementById("vert").textContent=loadSource("game.vert");
+	document.getElementById("frag").textContent=loadSource("game.frag");
+	document.getElementById("collision").textContent="#define COLLISION\n"+loadSource("game.frag");
+	document.getElementById("pp").textContent=loadSource("pp.frag");
+	runGame();
+	//window.onpageshow = function(e) {}
+}
+
+//state 1-2-3
+function runGame() {
 	//webgl stuff :D
 	e=document;
 	d=function(a){return e.getElementById(a);}
@@ -34,27 +53,6 @@ function run()
 		gl.attachShader(a,f);
 		return gl.getShaderInfoLog(f)
 	}
-	// input handling
-	moveL=false;
-	moveR=false;
-	x=0.0;
-	xa=0.0;
-	e.onkeydown = function(a)
-	{
-		if(a.keyCode==37) moveL=true;		
-		if(a.keyCode==39) moveR=true;
-	}
-	e.onkeyup = function(a)
-	{
-		if(a.keyCode==37) moveL=false;		
-		if(a.keyCode==39) moveR=false;
-	}
-	setInterval(function() {
-		if(moveL) xa-=1.0;
-		if(moveR) xa+=1.0;
-		xa*=0.9;
-		x+=xa;
-	},16);
 	canvas=d("screen");
 	gl=canvas.getContext("webgl");
 	// create vertex array
@@ -92,38 +90,121 @@ function run()
 	log("game infolog: "+gl.getProgramInfoLog(gameProgram));
 	log("pp infolog: "+gl.getProgramInfoLog(ppProgram));
 	gl.linkProgram(gameProgram);
+	gl.linkProgram(collisionProgram);
 	gl.linkProgram(ppProgram);
 	//rendering and gameplay logics
+	//game state stuff
+	/*
+	 states
+	 0 == ready to play (pressing enter enables gameplay)
+	 1 == playing (key controls active)
+	 2 == dead, ready to play
+	*/
 	timer=0;
-	m=function(a)
-	{
-		timer=timer||a;
-		// rendering collision & logic
-		gl.bindFramebuffer(gl.FRAMEBUFFER,cfbo);
-		gl.useProgram(collisionProgram);
-		gl.uniform2f(gl.getUniformLocation(collisionProgram,"res"),gl.drawingBufferWidth,gl.drawingBufferHeight);
-		gl.uniform1f(gl.getUniformLocation(collisionProgram,"t"),(a-timer)/1000);
-		gl.uniform1f(gl.getUniformLocation(collisionProgram,"xpos"),x);
-		gl.uniform1f(gl.getUniformLocation(collisionProgram,"xacc"),xa);
-		gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
-		gl.readPixels(0, 0, cfbo.width, cfbo.height, gl.RGBA, gl.UNSIGNED_BYTE, collisionData);
-		for(i=0;i<cfbo.width*cfbo.height*4;i++)
-		{
-			//if(collisionData[i] > 0)
-			// endGame();
+	gameState=0;
+	// input handling
+	moveL=false;
+	moveR=false;
+	x=0;
+	xa=0;
+	score=0;
+	e.onkeydown = function(a) {
+		if(gameState==1) {
+			if(a.keyCode==37) moveL=true;		
+			if(a.keyCode==39) moveR=true;
 		}
-		// rendering pass 0
-		gl.bindFramebuffer(gl.FRAMEBUFFER,null);
-		gl.useProgram(gameProgram);
-		gl.uniform2f(gl.getUniformLocation(gameProgram,"res"),gl.drawingBufferWidth,gl.drawingBufferHeight);
-		gl.uniform1f(gl.getUniformLocation(gameProgram,"t"),(a-timer)/1000);
-		gl.uniform1f(gl.getUniformLocation(gameProgram,"xpos"),x);
-		gl.uniform1f(gl.getUniformLocation(gameProgram,"xacc"),xa);
-		gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
-		// rendering pass 1
+	}
+	e.onkeyup = function(a) {
+		// debug kill
+		if(gameState==1) {
+			if(a.keyCode==13) {
+				killPlayer();
+				return;
+			}
+		}
+		//---
+		if(gameState==1) {
+			if(a.keyCode==37) moveL=false;		
+			if(a.keyCode==39) moveR=false;
+		} else if(gameState==0||gameState==2) {
+			// restart/start game
+			if(a.keyCode==13) {
+				spawnPlayer();
+			}
+		}
+	}
+
+	function killPlayer() {
+		document.getElementById("screen_loading").style.visibility="hidden";
+		document.getElementById("screen_dead").innerHTML = "<center><h1>You are dead.<br>Final score: " + score + "</center></h1>";
+		document.getElementById("screen_dead").style.visibility="visible";
+		document.getElementById("screen_score").style.visibility="hidden";
+		gameState=2;
+	}
+
+	function spawnPlayer() {
+		document.getElementById("screen_loading").style.visibility="hidden";
+		document.getElementById("screen_dead").style.visibility="hidden";
+		document.getElementById("screen_score").style.visibility="visible";
+		document.getElementById("screen_score").innerHTML="<h1>SCORE: 0</h1>";
+		x=0;
+		xa=0;
+		timer=0;
+		moveL=false;
+		moveR=false;
+		gameState=1;
+	}
+
+	setInterval(function() {
+		if(moveL) xa-=1.0;
+		if(moveR) xa+=1.0;
+		xa*=0.9;
+		x+=xa;
+	},16);
+	//score
+	setInterval(function() {
+		document.getElementById("screen_score").innerHTML="<h1>SCORE: "+score+"</h1>";
+	},10);
+	// render call
+	m=function(a) {
+		// rendering game
+		if(gameState==1) {
+			timer=timer||a;
+			//this value is wierd enough to be considered a bit random
+			score=Math.round(532.0*((a-timer)/1000),0);
+			// rendering collision & logic
+			gl.bindFramebuffer(gl.FRAMEBUFFER,cfbo);
+			gl.useProgram(collisionProgram);
+			gl.uniform2f(gl.getUniformLocation(collisionProgram,"res"),gl.drawingBufferWidth,gl.drawingBufferHeight);
+			gl.uniform1f(gl.getUniformLocation(collisionProgram,"t"),(a-timer)/1000);
+			gl.uniform1f(gl.getUniformLocation(collisionProgram,"xpos"),x);
+			gl.uniform1f(gl.getUniformLocation(collisionProgram,"xacc"),xa);
+			gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+			gl.readPixels(0, 0, cfbo.width, cfbo.height, gl.RGBA, gl.UNSIGNED_BYTE, collisionData);
+			for(i=0;i<cfbo.width*cfbo.height*4;i++) {
+				if(collisionData[i] > 0) {
+					//killPlayer();
+				}
+			}
+			// rendering pass 0
+			gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+			gl.useProgram(gameProgram);
+			gl.uniform2f(gl.getUniformLocation(gameProgram,"res"),gl.drawingBufferWidth,gl.drawingBufferHeight);
+			gl.uniform1f(gl.getUniformLocation(gameProgram,"t"),(a-timer)/1000);
+			gl.uniform1f(gl.getUniformLocation(gameProgram,"xpos"),x);
+			gl.uniform1f(gl.getUniformLocation(gameProgram,"xacc"),xa);
+			gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+			// rendering pass 1
+		}
+		// rendering dead game
+		else if(gameState==2) {
+
+		}
 		//final
 		window.requestAnimationFrame(m);
 	}
+
+	document.getElementById("screen_loading").innerHTML = "<center><img src=\"code.png\"/><br>ready.</br>";
 	m(0);
-} // run	
+} // run
 </script>
