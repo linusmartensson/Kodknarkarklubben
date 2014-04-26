@@ -1,0 +1,129 @@
+
+<script type="text/text" id="vert"></script>
+<script type="text/text" id="frag"></script>
+<script type="text/text" id="collision"></script>
+<script type="text/text" id="pp"></script>
+<div style="position:fixed;left:0;right:0;top:0;bottom:0;">
+	<canvas width=320 height=160 id=screen style="width:100%;height:100%"/>
+</div>
+<script>
+
+function loadSource(a)
+{
+	var xmlhttp = new XMLHttpRequest();
+	xmlhttp.open("GET",a,false);
+	xmlhttp.send();
+	return xmlhttp.responseText;
+}
+document.getElementById("vert").textContent=loadSource("/game.vert");
+document.getElementById("frag").textContent=loadSource("/game.frag");
+document.getElementById("collision").textContent="#define COLLISION\n"+loadSource("/game.frag");
+document.getElementById("pp").textContent=loadSource("/pp.frag");
+run();
+
+function run()
+	{
+	//webgl stuff :D
+	e=document;
+	d=function(a){return e.getElementById(a);}
+	log=function(a){console.log(a);}
+	loadShader=function(a,b,c) {
+		f=gl.createShader(b);
+		gl.shaderSource(f,c);
+		gl.compileShader(f);
+		gl.attachShader(a,f);
+		return gl.getShaderInfoLog(f)
+	}
+	// input handling
+	moveL=false;
+	moveR=false;
+	x=0.0;
+	xa=0.0;
+	e.onkeydown = function(a)
+	{
+		if(a.keyCode==37) moveL=true;		
+		if(a.keyCode==39) moveR=true;
+	}
+	e.onkeyup = function(a)
+	{
+		if(a.keyCode==37) moveL=false;		
+		if(a.keyCode==39) moveR=false;
+	}
+	setInterval(function() {
+		if(moveL) xa-=1.0;
+		if(moveR) xa+=1.0;
+		xa*=0.9;
+		x+=xa;
+	},16);
+	canvas=d("screen");
+	gl=canvas.getContext("webgl");
+	// create vertex array
+	vbo=gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+	gl.bufferData(gl.ARRAY_BUFFER,
+		new Float32Array([0.0,0.0,1.0,0.0,0.0,1.0,1.0,1.0]), gl.STATIC_DRAW
+	)
+	gl.enableVertexAttribArray(0)
+	gl.vertexAttribPointer(0, 2, gl.FLOAT, 0, 0, 0);
+	// collisionbuffer
+	var cfbo = gl.createFramebuffer();
+	var ctex = gl.createTexture();
+	cfbo.width = 32;
+	cfbo.height = 32;
+	var collisionData = new Uint8Array(cfbo.width*cfbo.height*4);
+	gl.bindFramebuffer(gl.FRAMEBUFFER,cfbo);
+	gl.bindTexture(gl.TEXTURE_2D,ctex);
+	gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+	gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+	gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, cfbo.width, cfbo.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+	gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, ctex, 0);
+	gl.bindTexture(gl.TEXTURE_2D,null);
+	gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+	// create shaderprograms
+	collisionProgram=gl.createProgram();
+	gameProgram=gl.createProgram();
+	ppProgram=gl.createProgram();
+	log("game VERT: "+loadShader(gameProgram,gl.VERTEX_SHADER,d("vert").textContent));
+	log("game FRAG: "+loadShader(gameProgram,gl.FRAGMENT_SHADER,d("frag").textContent));
+	log("pp VERT: "+loadShader(ppProgram,gl.VERTEX_SHADER,d("vert").textContent));
+	log("pp FRAG: "+loadShader(ppProgram,gl.FRAGMENT_SHADER,d("pp").textContent));
+	log("collision VERT: "+loadShader(collisionProgram,gl.VERTEX_SHADER,d("vert").textContent));
+	log("collision FRAG: "+loadShader(collisionProgram,gl.FRAGMENT_SHADER,d("collision").textContent));
+	log("game infolog: "+gl.getProgramInfoLog(gameProgram));
+	log("pp infolog: "+gl.getProgramInfoLog(ppProgram));
+	gl.linkProgram(gameProgram);
+	gl.linkProgram(ppProgram);
+	//rendering and gameplay logics
+	timer=0;
+	m=function(a)
+	{
+		timer=timer||a;
+		// rendering collision & logic
+		gl.bindFramebuffer(gl.FRAMEBUFFER,cfbo);
+		gl.useProgram(collisionProgram);
+		gl.uniform2f(gl.getUniformLocation(collisionProgram,"res"),gl.drawingBufferWidth,gl.drawingBufferHeight);
+		gl.uniform1f(gl.getUniformLocation(collisionProgram,"t"),(a-timer)/1000);
+		gl.uniform1f(gl.getUniformLocation(collisionProgram,"xpos"),x);
+		gl.uniform1f(gl.getUniformLocation(collisionProgram,"xacc"),xa);
+		gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+		gl.readPixels(0, 0, cfbo.width, cfbo.height, gl.RGBA, gl.UNSIGNED_BYTE, collisionData);
+		for(i=0;i<cfbo.width*cfbo.height*4;i++)
+		{
+			//if(collisionData[i] > 0)
+			// endGame();
+		}
+		// rendering pass 0
+		gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+		gl.useProgram(gameProgram);
+		gl.uniform2f(gl.getUniformLocation(gameProgram,"res"),gl.drawingBufferWidth,gl.drawingBufferHeight);
+		gl.uniform1f(gl.getUniformLocation(gameProgram,"t"),(a-timer)/1000);
+		gl.uniform1f(gl.getUniformLocation(gameProgram,"xpos"),x);
+		gl.uniform1f(gl.getUniformLocation(gameProgram,"xacc"),xa);
+		gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+		// rendering pass 1
+		//final
+		window.requestAnimationFrame(m);
+	}
+	m(0);
+} // run	
+</script>
