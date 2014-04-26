@@ -129,7 +129,7 @@ float ship(vec3 p){
 
 	vec3 oo = vec3(xpos,7.3,-20.0+t*STARTSPEED+t*t+5.0);
 
-	oo.y -= groundheight(oo)-3.5;
+	oo.y -= groundheight(oo)-10.5;
 
 	vec3 po = p-oo;
 
@@ -164,6 +164,7 @@ float grounddetail(vec3 p){
 float d(vec3 pos){
 	
 	vec3 p = pos;
+float qz = p.z;
 
  
 	float rr = rand(floor((p.z)/10.0));
@@ -187,7 +188,7 @@ float d(vec3 pos){
 	z = min(z, cylinder(p.yxz, 4.0-istate*8.0));
 	
 
-	return z;
+	return z + max(150.0-qz*0.1,0.0);
 }
 
 float da(vec3 pp){
@@ -227,18 +228,22 @@ void main(){
 	float dt = 1.0; 
 	float ml = 0.0;
 	for(int i=0;i<50;++i){
-		if(abs(dt) < 0.025+ml*10.0+j*0.01 || l > 350.0){
+		if((dt) < 0.025+ml*10.0+j*0.01 || l > 350.0){
 			continue;
 		}
 		ml = clamp(l/350.0,0.0,1.0);
 		j = float(i);
 		pp = o+dir*l;
+#ifdef COLLISION
+		dt = max(d(pp), ship(pp));
+#else
 		dt = min(d(pp), ship(pp));
+#endif
 		l += dt;
 		
 	}
 	gl_FragColor = vec4(0.0,0.0,0.0,1.0);
-	if(abs(dt) < 0.025+ml*10.0+j*0.01) {
+	if((dt) < 0.025+ml*10.0+j*0.01) {
 		vec3 n = norm(pp);
 		gl_FragColor.rgb = mix(dot(n*n*n, vec3(0.0,1.0,0.0))*0.5+vec3(0.5),gl_FragColor.rgb, ml);
 	}

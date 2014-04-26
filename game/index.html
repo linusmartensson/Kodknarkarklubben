@@ -175,15 +175,16 @@ function runGame() {
 			// rendering collision & logic
 			gl.bindFramebuffer(gl.FRAMEBUFFER,cfbo);
 			gl.useProgram(collisionProgram);
-			gl.uniform2f(gl.getUniformLocation(collisionProgram,"res"),gl.drawingBufferWidth,gl.drawingBufferHeight);
+			gl.uniform2f(gl.getUniformLocation(collisionProgram,"res"),cfbo.width, cfbo.height);
 			gl.uniform1f(gl.getUniformLocation(collisionProgram,"t"),(a-timer)/1000);
 			gl.uniform1f(gl.getUniformLocation(collisionProgram,"xpos"),x);
 			gl.uniform1f(gl.getUniformLocation(collisionProgram,"xacc"),xa);
 			gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
 			gl.readPixels(0, 0, cfbo.width, cfbo.height, gl.RGBA, gl.UNSIGNED_BYTE, collisionData);
-			for(i=0;i<cfbo.width*cfbo.height*4;i++) {
-				if(collisionData[i] > 0) {
-					//killPlayer();
+			for(i=0;i<cfbo.width*cfbo.height*4;i+=4) {
+				if(collisionData[i] > 0 && (a-timer)/1000 > 5.0) {
+					//console.log("CRASH");
+					killPlayer();
 				}
 			}
 			// rendering pass 0
