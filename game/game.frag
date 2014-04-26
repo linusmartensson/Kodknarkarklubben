@@ -88,7 +88,11 @@ float snoise(vec3 v){
   return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), 
                                 dot(p2,x2), dot(p3,x3) ) );
   }
-
+float smin( float a, float b, float k )
+{
+    float h = clamp( 0.5+0.5*(b-a)/k, 0.0, 1.0 );
+    return mix( b, a, h ) - k*h*(1.0-h);
+}
 float rand(float a){
 	return fract(mod(a*90327.12312+1230.0,(sin(a)+1.0)*10351.023));
 }
@@ -106,8 +110,7 @@ void rot(inout vec2 v, in float t){
 
 
 float groundheight(vec3 pos){
-	return pos.y + 
-		-10.0+snoise(pos.zx*0.003)*30.0;
+	return pos.y + snoise(pos.zx*0.001)*30.0;
 }
  
 float box(vec3 p, vec3 b){
@@ -120,7 +123,7 @@ float cylinder(vec3 p, float w){
 }
 
 
-#define STARTSPEED 10.0
+#define STARTSPEED 250.0
 
 float ship(vec3 p){
 
@@ -132,10 +135,10 @@ float ship(vec3 p){
 
 
 	rot(po.zy, 0.1);
-	rot(po.xz, xacc*0.1);
-	rot(po.yx, xacc*-0.3);
+	rot(po.xz, xacc*0.01);
+	rot(po.yx, xacc*-0.1);
 	vec3 poo = po;
-	vec3 pooo = po+vec3(0.0,0.0,-4.0);
+	vec3 pooo = po+vec3(0.0,0.0,-2.0);
 	rot(po.yx, 3.14159-0.3);
 	float mm = (po.z)*0.2;
 	float p1 = box(po, vec3(2.0,0.3,3.0));
@@ -146,11 +149,11 @@ float ship(vec3 p){
 	float k = 1.0;
 
 	rot(poo.xz, k);
-	float p3 = box(poo, vec3(1.3,1.0,3.3));
+	float p3 = box(poo, vec3(0.9,1.0,3.3));
 	rot(poo.xz, -k*2.0);
-	p3 = max(box(poo, vec3(1.3,1.0,3.3)),p3);
+	p3 = max(box(poo, vec3(0.9,1.0,3.3)),p3);
 	
-	return min(max(p3,min(p1,p2)), box(pooo, vec3(0.3,0.3,3.0)))+0.3;
+	return min(max(p3,min(p1,p2)), box(pooo, vec3(0.4,0.4,2.0)))+0.3;
 }
 
 float grounddetail(vec3 p){
@@ -165,11 +168,24 @@ float d(vec3 pos){
  
 	float rr = rand(floor((p.z)/10.0));
 
+	float state = max(0.0,sin(p.z*0.001));
+	float istate = 1.0-state;
 	
 	float z = 100000000.0;
-	z = min(z,groundheight(p)+grounddetail(p));
- 
-	z = min(z, snoise(p.yzx*0.01)*100.0 - length(p.xy)*0.5 + 75.0 + max(150.0-p.z*0.1,0.0));
+	float gh = groundheight(p)+grounddetail(p);
+	z = min(z,gh+state*300.0);
+	p.x += sin(p.z*0.001+sin(p.z*0.0012))*300.0 / (1.0+p.z*0.0001);
+ 	p.y += gh-p.y;
+	z = smin(z, 0.25*(snoise(p.xyz*vec3(0.01,0.004,0.0021))*100.0 - length(p.xy)*0.4+state*100.0 + 80.0 + max(150.0-p.z*0.1,0.0)), 10.01);
+
+
+	p.y = pos.y;
+	rot(p.xy, floor(p.z/50.0)*0.25);
+	p.z = mod(p.z, 50.0)-25.0;
+	p.xy = mod(p.xy, 100.0+istate*400.0)-50.0-istate*200.0;
+	z = min(z, cylinder(p, 4.0-istate*8.0));
+	z = min(z, cylinder(p.yxz, 4.0-istate*8.0));
+	
 
 	return z;
 }
@@ -195,10 +211,10 @@ void main(){
 	o = vec3(xpos,0.0,-20.0+t*STARTSPEED+t*t);
 	vec3 dir = vec3((gl_FragCoord.xy/res.xy*2.0-1.0)/vec2(res.y/res.x,1.0),1.0);
 
-	rot(dir.xz,-(xacc*0.05));
+	rot(dir.xz,-(xacc*0.04));
 	vec2 rd = vec2(atan(dir.x,dir.y), sqrt(dir.x*dir.x+dir.y*dir.y)*1.0);
 	dir.xy = vec2(sin(rd.x)*rd.y, cos(rd.x)*rd.y);
-	rot(dir.yx, xacc*0.05);
+	rot(dir.yx, xacc*0.02);
 
 	dir = normalize(dir);
 	o.y -= groundheight(o)-4.5;
@@ -209,25 +225,27 @@ void main(){
 	float j = 0.0;
 	gl_FragColor = vec4(0.0,0.0,0.0,1.0);
 	float dt = 1.0; 
-	for(int i=0;i<100;++i){
-		if(dt < 0.025 || l > 350.0){
+	float ml = 0.0;
+	for(int i=0;i<50;++i){
+		if(abs(dt) < 0.025+ml*10.0+j*0.01 || l > 350.0){
 			continue;
 		}
+		ml = clamp(l/350.0,0.0,1.0);
 		j = float(i);
 		pp = o+dir*l;
 		dt = min(d(pp), ship(pp));
 		l += dt;
 		
 	}
-	float ml = clamp(l/350.0,0.0,1.0);
-//	gl_FragColor = vec3(0.0,noise(t+dir.y*10.0+dir.x*3.0)*0.1+0.9,1.0).xyyz*vec4(1.0,0.4,1.0,1.0);
-	gl_FragColor = vec4(0.0,0.0,1.0,1.0);
-	if(dt < 0.025*(ml*10.0+1.0)) {
+	gl_FragColor = vec4(0.0,0.0,0.0,1.0);
+	if(abs(dt) < 0.025+ml*10.0+j*0.01) {
 		vec3 n = norm(pp);
-		gl_FragColor.rgb = mix(dot(n*n*n, vec3(0.0,1.0,0.0))*vec3(0.3,0.4,0.8),gl_FragColor.rgb, ml);
+		gl_FragColor.rgb = mix(dot(n*n*n, vec3(0.0,1.0,0.0))*0.5+vec3(0.5),gl_FragColor.rgb, ml);
 	}
 
 	// noise it :)
-	float gray = 0.33*(gl_FragColor.r + gl_FragColor.g + gl_FragColor.b);
-	gl_FragColor.rgb = vec3(rand(t+dir.x*100.0),rand(t+dir.y*100.0),gray);
+	float gray = 0.33*(gl_FragColor.r + gl_FragColor.g + gl_FragColor.b)+max(0.0,1.5-t);
+	gl_FragColor.rgb = vec3(
+		rand(t+dir.x*900.0+10000.5),
+		rand(t+dir.y*900.0+10000.0),gray).bbb;
 } 
