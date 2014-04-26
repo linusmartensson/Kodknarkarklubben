@@ -7,6 +7,12 @@ uniform float xacc;
 vec3 o;
 float l;
 
+
+vec3 ahsv2rgb(float h, float s, float v){
+ return (clamp(abs(fract(h+vec3(1.0,0.6666667,0.3333333)) * 6.0 - 3.0) -1.0, 0.0, 1.0)-1.0)*s*v+v;	
+}
+
+
 vec3 mod289(vec3 x) {return x - floor(x * (1.0 / 289.0)) * 289.0;}
 vec4 mod289(vec4 x) {return x - floor(x * (1.0 / 289.0)) * 289.0;}
 vec2 mod289(vec2 x) {return x - floor(x * (1.0 / 289.0)) * 289.0;}
@@ -123,11 +129,11 @@ float cylinder(vec3 p, float w){
 }
 
 
-#define STARTSPEED 250.0
+#define STARTSPEED 150.0
 
 float ship(vec3 p){
 
-	vec3 oo = vec3(xpos,7.3,-20.0+t*STARTSPEED+t*t+5.0);
+	vec3 oo = vec3(xpos,7.3,t*STARTSPEED+t*t+4.0);
 
 	oo.y -= groundheight(oo)-5.5;
 
@@ -164,31 +170,46 @@ float grounddetail(vec3 p){
 float d(vec3 pos){
 	
 	vec3 p = pos;
-float qz = p.z;
 
  
 	float rr = rand(floor((p.z)/10.0));
 
 	float state = max(0.0,sin(p.z*0.001));
 	float istate = 1.0-state;
+
+	float startup = p.z / (1000.0+p.z);
+	float istartup = 1.0-startup;
+
+	float kstate = max(0.0, -sin(p.z*0.0004));
+	float ikstate = 1.0-kstate;
 	
 	float z = 100000000.0;
 	float gh = groundheight(p)+grounddetail(p);
 	z = min(z,gh+state*300.0);
-	p.x += sin(p.z*0.001+sin(p.z*0.0012))*300.0 / (1.0+p.z*0.0001);
+//	p.x += sin(p.z*0.001+sin(p.z*0.0012))*300.0 * startup;
  	p.y += gh-p.y;
-	z = smin(z, 0.25*(snoise(p.xyz*vec3(0.01,0.004,0.0021))*100.0 - length(p.xy)*0.4+state*100.0 + 80.0 + max(150.0-p.z*0.1,0.0)), 10.01);
+	z = smin(z, 0.45*(snoise(p.xyz*vec3(0.007,0.004,0.0021))*100.0 - length(p.xy)*0.3+state*100.0 + 80.0 + max(150.0-p.z*0.1,0.0))+kstate*100.0, 1.01);
 
-
-	p.y = pos.y;
-	rot(p.xy, floor(p.z/50.0)*0.25);
-	p.z = mod(p.z, 50.0)-25.0;
-	p.xy = mod(p.xy, 100.0+istate*400.0)-50.0-istate*200.0;
-	z = min(z, cylinder(p, 4.0-istate*8.0));
-	z = min(z, cylinder(p.yxz, 4.0-istate*8.0));
 	
 
-	return z + max(50.0-qz*0.1,0.0);
+	p.y = pos.y;
+	p.x += sin(p.z*0.005)*50.0*startup;
+	rot(p.xy, floor(p.z/50.0)*0.25);
+	p.z = mod(p.z, 50.0)-25.0;
+	p.xy = mod(p.xy, 200.0+istate*400.0)-100.0-istate*200.0;
+	z = min(z, cylinder(p, 10.0-istate*16.0 - istartup*16.0)+kstate*100.0);
+	z = min(z, cylinder(p.yxz, 10.0-istate*16.0- istartup*16.0)+kstate*100.0);
+
+	p = pos-o;
+	
+	p.x += sin(pos.z*0.003)*100.0;
+	rot(p.xz, sin(pos.z*0.005)*0.3);
+        p += o;
+	p.xz = mod(p.xz, 200.0)-100.0;
+	rot(p.zy, sin(p.z*0.01)*0.3);
+	z = min(z, ikstate*100.0 + box(p.xyz, vec3(30.0-ikstate*100.0,500.0,10.0-ikstate*100.0)));
+
+	return z;
 }
 
 float da(vec3 pp){
@@ -208,9 +229,10 @@ vec3 norm(vec3 p){
 
 void main(){ 
 	l = 0.0;
-	float tf = floor(t*0.25+10.0);
-	o = vec3(xpos,0.0,-20.0+t*STARTSPEED+t*t);
+	o = vec3(xpos,0.0,t*STARTSPEED+t*t);
 	vec3 dir = vec3((gl_FragCoord.xy/res.xy*2.0-1.0)/vec2(res.y/res.x,1.0),1.0);
+
+
 
 	rot(dir.xz,-(xacc*0.04));
 	vec2 rd = vec2(atan(dir.x,dir.y), sqrt(dir.x*dir.x+dir.y*dir.y)*1.0);
@@ -228,10 +250,10 @@ void main(){
 	float dt = 1.0; 
 	float ml = 0.0;
 	for(int i=0;i<50;++i){
-		if((dt) < 0.025+ml*10.0+j*0.01 || l > 350.0){
+		if((dt) < 0.025+ml*10.0+j*0.01 || l > 700.0){
 			continue;
 		}
-		ml = clamp(l/350.0,0.0,1.0);
+		ml = clamp(l/700.0,0.0,1.0);
 		j = float(i);
 		pp = o+dir*l;
 #ifdef COLLISION
@@ -245,14 +267,17 @@ void main(){
 	gl_FragColor = vec4(0.0,0.0,0.0,1.0);
 	if((dt) < 0.025+ml*10.0+j*0.01) {
 		vec3 n = norm(pp);
-		gl_FragColor.rgb = mix(dot(n*n*n, vec3(0.0,1.0,0.0))*0.5+vec3(0.5),gl_FragColor.rgb, ml);
+		vec3 li = vec3(dot(n, normalize(vec3(sin(t),cos(t),-3.0))));
+		
+		gl_FragColor.rgb = mix(li,gl_FragColor.rgb, ml);
 	}
 
 	// noise it :)
 #ifndef COLLISION
-	float gray = 0.33*(gl_FragColor.r + gl_FragColor.g + gl_FragColor.b)+max(0.0,1.5-t);
-	gl_FragColor.rgb = vec3(
-		rand(t+dir.x*900.0+10000.5),
-		rand(t+dir.y*900.0+10000.0),gray+sin(t*3.0+dir.y*10.0)*0.25).bbb;
+	float g = dot(gl_FragColor.rgb,vec3(0.21,0.72,0.07))+max(0.0,1.5-t);
+	float q2 = rand(t+dir.x*900.0+10000.5);
+	float q1 = rand(t+dir.y*900.0+10000.0);
+	float l = mod(floor(t*0.15),2.0)*0.66;
+	gl_FragColor.rgb = ahsv2rgb(0.0+l,1.0,g)+ahsv2rgb(l+0.33,1.0,q1)+ahsv2rgb(l+0.66,1.0,q2);
 #endif
 } 

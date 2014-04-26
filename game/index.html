@@ -3,7 +3,7 @@
 <script type="text/text" id="collision"></script>
 <script type="text/text" id="pp"></script>
 <div style="position:fixed;left:0;right:0;top:0;bottom:0;z-index:0;">
-<canvas width=320 height=160 id=screen style="width:100%;height:100%"/>
+<canvas width=640 height=360 id=screen style="width:100%;height:100%"/>
 </div>
 <div id="screen_loading" style="border:none;position:fixed;left:0;right:0;top:0;bottom:0;z-index:1;"><center><img src="code.png"><br>loading</center></div>
 <div id="screen_score" style="border:none;position:fixed;left:0;right:0;top:0;bottom:0;z-index:2;visibility:hidden"><h1>SCORE:14322.0</h1></div>
@@ -159,7 +159,7 @@ function runGame() {
 		if(moveL) xa-=1.0;
 		if(moveR) xa+=1.0;
 		xa*=0.9;
-		x+=xa;
+		x+=xa*0.5;
 	},16);
 	//score
 	setInterval(function() {
