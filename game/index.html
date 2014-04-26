@@ -182,7 +182,7 @@ function runGame() {
 			gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
 			gl.readPixels(0, 0, cfbo.width, cfbo.height, gl.RGBA, gl.UNSIGNED_BYTE, collisionData);
 			for(i=0;i<cfbo.width*cfbo.height*4;i+=4) {
-				if(collisionData[i] > 0 && (a-timer)/1000 > 5.0) {
+				if(collisionData[i] > 0 && (a-timer)/1000 > 2.0) {
 					//console.log("CRASH");
 					killPlayer();
 				}

@@ -129,7 +129,7 @@ float ship(vec3 p){
 
 	vec3 oo = vec3(xpos,7.3,-20.0+t*STARTSPEED+t*t+5.0);
 
-	oo.y -= groundheight(oo)-10.5;
+	oo.y -= groundheight(oo)-5.5;
 
 	vec3 po = p-oo;
 
@@ -188,7 +188,7 @@ float qz = p.z;
 	z = min(z, cylinder(p.yxz, 4.0-istate*8.0));
 	
 
-	return z + max(150.0-qz*0.1,0.0);
+	return z + max(50.0-qz*0.1,0.0);
 }
 
 float da(vec3 pp){
@@ -218,7 +218,7 @@ void main(){
 	rot(dir.yx, xacc*0.02);
 
 	dir = normalize(dir);
-	o.y -= groundheight(o)-4.5;
+	o.y -= groundheight(o)-6.5;
 
 	vec3 pp = vec3(0.0);
 
@@ -249,8 +249,10 @@ void main(){
 	}
 
 	// noise it :)
+#ifndef COLLISION
 	float gray = 0.33*(gl_FragColor.r + gl_FragColor.g + gl_FragColor.b)+max(0.0,1.5-t);
 	gl_FragColor.rgb = vec3(
 		rand(t+dir.x*900.0+10000.5),
-		rand(t+dir.y*900.0+10000.0),gray).bbb;
+		rand(t+dir.y*900.0+10000.0),gray+sin(t*3.0+dir.y*10.0)*0.25).bbb;
+#endif
 } 
