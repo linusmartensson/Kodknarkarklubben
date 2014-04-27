@@ -132,10 +132,11 @@ float cylinder(vec3 p, float w){
 
 
 #define STARTSPEED 150.0
+#define ACCELERATION 3.0
 
 float ship(vec3 p){
 
-	vec3 oo = vec3(xpos,7.3,t*STARTSPEED+t*t+4.0);
+	vec3 oo = vec3(xpos,7.3,t*STARTSPEED+t*t*ACCELERATION+4.0);
 
 	oo.y -= groundheight(oo)-6.0;
 
@@ -176,40 +177,56 @@ float d(vec3 pos){
  
 	float rr = rand(floor((p.z)/10.0));
 
-	float state = max(0.0,sin(p.z*0.001));
+	float state = max(0.0,sin(p.z*0.00021));
 	float istate = 1.0-state;
 
 	float startup = p.z / (1000.0+p.z);
 	float istartup = 1.0-startup;
 
-	float kstate = max(0.0, -sin(p.z*0.0004));
+	float kstate = max(0.0, -sin(p.z*0.00035));
 	float ikstate = 1.0-kstate;
+
+	float mstate = max(0.0, -cos(p.z*0.00032))>0.7?1.0:0.0;
+	
+	float imstate = 1.0-mstate;
 	
 	float z = 100000000.0;
 	float gh = groundheight(p);
 	z = min(z,gh+state*300.0);
 //	p.x += sin(p.z*0.001+sin(p.z*0.0012))*300.0 * startup;
  	p.y += gh-p.y;
-	z = smin(z, 0.45*(snoise(p.xyz*vec3(0.007,0.004,0.0021))*100.0 - length(p.xy)*0.3+state*100.0 + 80.0 + max(150.0-p.z*0.1,0.0))+kstate*100.0, 1.01);
+	z = smin(z, 0.45*(snoise(p.xyz*vec3(0.007,0.004,0.0021))*100.0 - length(p.xy)*0.3 + 80.0 + max(150.0-p.z*0.1,0.0)), 1.01)+kstate*30.0+state*100.0 + mstate*100.0;
 
-	
+	float ms = sin(t*0.5)*0.5+0.5;
+
+
+	state = state>0.5?1.0:0.0;
+	istate = 1.0-state;
 
 	p.y = pos.y;
-	p.x += sin(p.z*0.005)*50.0*startup;
-	rot(p.xy, floor(p.z/50.0)*0.25);
-	p.z = mod(p.z, 50.0)-25.0;
+	p.x += sin(p.z*0.0025)*100.0;
+	rot(p.xy, floor(p.z/(50.0))*0.25);
+	p.z = mod(p.z, 150.0)-125.0;
+	istate = istate > 0.5?1.0:0.0;
 	p.xy = mod(p.xy, 200.0+istate*400.0)-100.0-istate*200.0;
-	z = min(z, cylinder(p, 10.0-istate*16.0 - istartup*16.0)+kstate*100.0);
-	z = min(z, cylinder(p.yxz, 10.0-istate*16.0- istartup*16.0)+kstate*100.0);
+	z = min(z, cylinder(p, 10.0-istate*16.0 - istartup*16.0)+kstate*100.0+mstate*100.0);
+	z = min(z, cylinder(p.yxz, 10.0-istate*16.0- istartup*16.0)+kstate*100.0+mstate*100.0);
 
-	p = pos-o;
-	
+	p = pos;
+	kstate = kstate > 0.3?1.0:0.0;
+	ikstate = 1.0-kstate;
+
 	p.x += sin(pos.z*0.003)*100.0;
-	rot(p.xz, sin(pos.z*0.005)*0.3);
-        p += o;
 	p.xz = mod(p.xz, 200.0)-100.0;
 	rot(p.zy, sin(p.z*0.01)*0.3);
-	z = min(z, ikstate*100.0 + box(p.xyz, vec3(30.0-ikstate*100.0,500.0,10.0-ikstate*100.0)));
+	z = min(z, ikstate*100.0+mstate*100.0 + box(p.xyz, vec3(30.0-ikstate*100.0,5000.0,10.0-ikstate*100.0)));
+
+	p = pos;
+	p.x += sin(t*0.1)*1000.0;
+	rot(p.xy, p.z*0.0003+t*0.1);
+	p.xy = mod(p.xy, 200.0)-100.0;
+
+	z = min(z, cylinder(p.xzy, mstate*515.0-500.0)+max(0.0,10.0-cylinder(pos.xzy,0.0)*0.1));
 
 	return z;
 }
@@ -233,7 +250,7 @@ void main(){
 
  
 	l = 0.0;
-	o = vec3(xpos,0.0,t*STARTSPEED+t*t);
+	o = vec3(xpos,0.0,t*STARTSPEED+t*t*ACCELERATION);
 	vec3 dir = vec3((gl_FragCoord.xy/res.xy*2.0-1.0)/vec2(res.y/res.x,1.0),1.0);
 
 
@@ -253,11 +270,11 @@ void main(){
 	kkk = vec4(0.0,0.0,0.0,1.0);
 	float dt = 1.0; 
 	float ml = 0.0;
-	for(int i=0;i<50;++i){
-		if((dt) < 0.025+ml*10.0+j*0.01 || l > 700.0){
+	for(int i=0;i<90;++i){
+		if((dt) < 0.025+ml*10.0+j*0.01 || l > 7000.0){
 			break;
 		}
-		ml = clamp(l/700.0,0.0,1.0);
+		ml = clamp(l/7000.0,0.0,1.0);
 		j = float(i);
 		pp = o+dir*l;
 #ifdef COLLISION
@@ -270,18 +287,28 @@ void main(){
 	}
 	kkk = vec4(0.0,0.0,0.0,1.0);
 	if((dt) < 0.025+ml*10.0+j*0.01) {
+#ifndef COLLISION
 		vec3 n = norm(pp);
-		vec3 li = vec3(dot(n, normalize(vec3(sin(t),cos(t),-3.0))));
-		
+		vec3 li = vec3(abs(dot(n, normalize(vec3(sin(t),cos(t)+1.5,-2.0)))));
 		kkk.rgb = mix(li,kkk.rgb, ml);
+#else
+		kkk.rgb = vec3(1.0);
+#endif
 	}
 
 	// noise it :)
 #ifndef COLLISION
-	float g = dot(kkk.rgb,vec3(0.21,0.72,0.07))+max(0.0,1.5-t)+grounddetail(pp)*(0.01);
-	float q2 = rand(t+dir.x*900.0+10000.5)*0.01;
-	float q1 = rand(t+dir.y*900.0+10000.0)*0.01;
-	float l = mod(floor(t*0.15),2.0)*0.66;
-	kkk.rgb = ahsv2rgb(0.0+l,1.0,g)+ahsv2rgb(l+0.33,1.0,q1)+ahsv2rgb(l+0.66,1.0,q2);
+	float g = dot(kkk.rgb,vec3(0.33))+max(0.0,1.5-t)+grounddetail(pp)*(0.01);
+	float q2 = rand(t+dir.x*900.0+10000.5);
+	float q1 = rand(t+dir.y*900.0+10000.0);
+	//float l = mod(floor(t*0.05),2.0)*0.66;
+	float l = floor(t*0.05)*0.33;
+	float k = 1.0-distance(mod(t*0.05, 1.0), 1.0);
+	k *= k*k*k*k*k;
+	k *= k*k*k*k;
+	k *= k*k*k*k;
+	k = sin(k*50.0);
+	kkk.rgb = ahsv2rgb(0.0+l,1.0,g)+ahsv2rgb(l+0.33,1.0-k,q1)+ahsv2rgb(l+0.66,1.0-k,q2);
+
 #endif
 } 
