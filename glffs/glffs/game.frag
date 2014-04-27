@@ -137,7 +137,7 @@ float ship(vec3 p){
 
 	vec3 oo = vec3(xpos,7.3,t*STARTSPEED+t*t+4.0);
 
-	oo.y -= groundheight(oo)-5.5;
+	oo.y -= groundheight(oo)-6.0;
 
 	vec3 po = p-oo;
 
@@ -186,7 +186,7 @@ float d(vec3 pos){
 	float ikstate = 1.0-kstate;
 	
 	float z = 100000000.0;
-	float gh = groundheight(p)+grounddetail(p);
+	float gh = groundheight(p);
 	z = min(z,gh+state*300.0);
 //	p.x += sin(p.z*0.001+sin(p.z*0.0012))*300.0 * startup;
  	p.y += gh-p.y;
@@ -244,7 +244,7 @@ void main(){
 	rot(dir.yx, xacc*0.02);
 
 	dir = normalize(dir);
-	o.y -= groundheight(o)-6.5;
+	o.y -= groundheight(o)-7.5;
 
 	vec3 pp = vec3(0.0);
 
@@ -255,7 +255,7 @@ void main(){
 	float ml = 0.0;
 	for(int i=0;i<50;++i){
 		if((dt) < 0.025+ml*10.0+j*0.01 || l > 700.0){
-			continue;
+			break;
 		}
 		ml = clamp(l/700.0,0.0,1.0);
 		j = float(i);
@@ -278,9 +278,9 @@ void main(){
 
 	// noise it :)
 #ifndef COLLISION
-	float g = dot(kkk.rgb,vec3(0.21,0.72,0.07))+max(0.0,1.5-t);
-	float q2 = rand(t+dir.x*900.0+10000.5);
-	float q1 = rand(t+dir.y*900.0+10000.0);
+	float g = dot(kkk.rgb,vec3(0.21,0.72,0.07))+max(0.0,1.5-t)+grounddetail(pp)*(0.01);
+	float q2 = rand(t+dir.x*900.0+10000.5)*0.01;
+	float q1 = rand(t+dir.y*900.0+10000.0)*0.01;
 	float l = mod(floor(t*0.15),2.0)*0.66;
 	kkk.rgb = ahsv2rgb(0.0+l,1.0,g)+ahsv2rgb(l+0.33,1.0,q1)+ahsv2rgb(l+0.66,1.0,q2);
 #endif

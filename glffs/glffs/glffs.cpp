@@ -1,10 +1,11 @@
 
 
 #include"stdafx.h"
-
+#include"bass.h"
 
 #include<fstream>
 
+#pragma comment(lib, "bass.lib")
 #pragma comment(lib, "OpenGL32.lib")
 #pragma comment(lib, "glfw3.lib")
 #pragma comment(lib, "glew32s.lib")
@@ -20,7 +21,7 @@
 
 
 double timer = 0;
-int gameState =1;
+int gameState =0;
 
 bool moveL = false;
 bool moveR = false;
@@ -64,7 +65,6 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
 	}
 
 }
-
 
 
 int width = 1280/2, height = 720/2;
@@ -138,7 +138,7 @@ int main(int argc, char* argv[])
 	glBindTexture(GL_TEXTURE_2D, 0);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-
+	BASS_Init(-1,48000,BASS_DEVICE_SPEAKERS,0,0);
 
 	auto collisionProgram = glCreateProgram();
 	auto gameProgram = glCreateProgram();
@@ -146,7 +146,7 @@ int main(int argc, char* argv[])
 	
 	{
 		std::ifstream ifsv("game.vert");
-		std::ifstream ifsf("game_optimized.frag");
+		std::ifstream ifsf("game.frag");
 		loadShader(gameProgram, GL_VERTEX_SHADER, ifsv);
 		loadShader(gameProgram, GL_FRAGMENT_SHADER, ifsf);
 	}
@@ -189,6 +189,22 @@ int main(int argc, char* argv[])
 	while(!glfwWindowShouldClose(w)){
 		if(moveL) xa-=1.0;
 		if(moveR) xa+=1.0;
+		if(glfwJoystickPresent(0)){
+			int a;
+			auto b = glfwGetJoystickAxes(0, &a);
+			
+			xa += b[0];
+
+			auto c = glfwGetJoystickButtons(0, &a);
+			if(c[0] != 0){
+				if(gameState == 1) {
+					killPlayer();
+				} else {
+					spawnPlayer();
+				}
+			}
+		}
+
 		xa*=0.9;
 		x+=xa*0.5;
 
@@ -196,17 +212,15 @@ int main(int argc, char* argv[])
 
 		if(gameState == 1){
 			
-			glClearColor(0.5,0.0,0.0,1.0);
-			glClear(GL_COLOR_BUFFER_BIT);
 			score = 532.0*(t-timer);
-			
+
 
 			glBindFramebuffer(GL_FRAMEBUFFER, cfbo);
 			glUseProgram(collisionProgram);
 			glUniform2f(glGetUniformLocation(collisionProgram, "res"), 32, 32);
-			glUniform1f(glGetUniformLocation(collisionProgram, "t"), (t-timer));
-			glUniform1f(glGetUniformLocation(collisionProgram, "xpos"), x);
-			glUniform1f(glGetUniformLocation(collisionProgram, "xacc"), xa);
+			glUniform1f(glGetUniformLocation(collisionProgram, "t"), (float)(t-timer));
+			glUniform1f(glGetUniformLocation(collisionProgram, "xpos"), (float)x);
+			glUniform1f(glGetUniformLocation(collisionProgram, "xacc"), (float)xa);
 			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 			glReadPixels(0,0,32,32,GL_RGBA, GL_UNSIGNED_BYTE, collisionData);
 			for(int i=0;i<32*32*4;i+=4){
@@ -217,16 +231,19 @@ int main(int argc, char* argv[])
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			glUseProgram(gameProgram);
 			glUniform2f(glGetUniformLocation(gameProgram, "res"), width,height);
-			glUniform1f(glGetUniformLocation(gameProgram, "t"), (t-timer));
-			glUniform1f(glGetUniformLocation(gameProgram, "xpos"), x);
-			glUniform1f(glGetUniformLocation(gameProgram, "xacc"), xa);
+			glUniform1f(glGetUniformLocation(gameProgram, "t"), (float)(t-timer));
+			glUniform1f(glGetUniformLocation(gameProgram, "xpos"), (float)x);
+			glUniform1f(glGetUniformLocation(gameProgram, "xacc"), (float)xa);
 			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	
+ 		glfwSwapBuffers(w);
 		} else if(gameState == 2) {
 
+		} else {
+			
+ 		glfwSwapBuffers(w);
 		}
 
- 		glfwSwapBuffers(w);
 		glfwPollEvents();
 	}
 
