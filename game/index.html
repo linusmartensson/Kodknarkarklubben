@@ -158,6 +158,9 @@ function runGame() {
 	setInterval(function() {
 		if(moveL) xa-=1.0;
 		if(moveR) xa+=1.0;
+		if(navigator.getGamepads().length > 0){
+			xa += navigator.getGamepads()[0].axes[0];
+		}
 		xa*=0.9;
 		x+=xa*0.5;
 	},16);
