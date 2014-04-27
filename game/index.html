@@ -33,7 +33,7 @@ function loadGame() {
 	console.log("loading");
 	//document.getElementById("screen_loading").
 	document.getElementById("vert").textContent=loadSource("game.vert");
-	document.getElementById("frag").textContent=loadSource("game.frag");
+	document.getElementById("frag").textContent=loadSource("game_optimized.frag");
 	document.getElementById("collision").textContent="#define COLLISION\n"+loadSource("game.frag");
 	document.getElementById("pp").textContent=loadSource("pp.frag");
 	runGame();
